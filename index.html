@@ -2,11 +2,11 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>シンプル音ゲー</title>
+<title>光る音ゲー</title>
 <style>
   body {
     margin: 0;
-    background: #111;
+    background: #0b0f1a;
     color: white;
     text-align: center;
     font-family: sans-serif;
@@ -18,11 +18,12 @@
 
   #game {
     position: relative;
-    width: 300px;
-    height: 500px;
+    width: 320px;
+    height: 520px;
     margin: 20px auto;
-    background: #222;
-    border: 3px solid white;
+    background: #111;
+    border: 3px solid #00eaff;
+    box-shadow: 0 0 20px #00eaff;
     overflow: hidden;
   }
 
@@ -30,7 +31,7 @@
     position: absolute;
     width: 25%;
     height: 100%;
-    border-left: 1px solid #444;
+    border-left: 1px solid #333;
   }
 
   .lane:nth-child(1) { left: 0%; }
@@ -40,33 +41,46 @@
 
   .note {
     position: absolute;
-    width: 70px;
-    height: 20px;
+    width: 60px;
+    height: 18px;
     border-radius: 10px;
     left: 50%;
     transform: translateX(-50%);
+    animation: glow 1s infinite alternate;
   }
 
-  .lane0 .note { background: cyan; }
-  .lane1 .note { background: lime; }
-  .lane2 .note { background: orange; }
-  .lane3 .note { background: pink; }
+  /* レーンごとの色＋発光 */
+  .lane0 .note { background: cyan; box-shadow: 0 0 15px cyan; }
+  .lane1 .note { background: lime; box-shadow: 0 0 15px lime; }
+  .lane2 .note { background: orange; box-shadow: 0 0 15px orange; }
+  .lane3 .note { background: pink; box-shadow: 0 0 15px pink; }
+
+  @keyframes glow {
+    from { box-shadow: 0 0 5px white; }
+    to { box-shadow: 0 0 20px white; }
+  }
 
   #judgeLine {
     position: absolute;
-    bottom: 50px;
+    bottom: 60px;
     width: 100%;
-    height: 5px;
+    height: 6px;
     background: red;
+    box-shadow: 0 0 10px red;
   }
 
   #score {
     font-size: 20px;
   }
 
+  #combo {
+    font-size: 18px;
+    color: gold;
+  }
+
   #result {
-    font-size: 24px;
-    height: 30px;
+    font-size: 26px;
+    height: 40px;
     margin-top: 10px;
   }
 
@@ -75,19 +89,36 @@
     font-size: 16px;
     margin-top: 10px;
   }
+
+  /* 判定エフェクト */
+  .flash {
+    position: absolute;
+    bottom: 50px;
+    width: 25%;
+    height: 20px;
+    background: white;
+    opacity: 0.7;
+    animation: flash 0.2s;
+  }
+
+  @keyframes flash {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
 </style>
 </head>
 
 <body>
 
-<h1>🎵 シンプル音ゲー</h1>
+<h1>✨ 光る音ゲー</h1>
 <div id="score">Score: 0</div>
+<div id="combo">Combo: 0</div>
 
 <div id="game">
-  <div class="lane"></div>
-  <div class="lane"></div>
-  <div class="lane"></div>
-  <div class="lane"></div>
+  <div class="lane lane0"></div>
+  <div class="lane lane1"></div>
+  <div class="lane lane2"></div>
+  <div class="lane lane3"></div>
   <div id="judgeLine"></div>
 </div>
 
@@ -98,9 +129,12 @@
 const game = document.getElementById("game");
 const resultText = document.getElementById("result");
 const scoreText = document.getElementById("score");
+const comboText = document.getElementById("combo");
+const lanes = document.querySelectorAll(".lane");
 
 let notes = [];
 let score = 0;
+let combo = 0;
 let gameInterval;
 let spawnInterval;
 
@@ -113,40 +147,42 @@ function spawnNote() {
   const note = document.createElement("div");
   note.classList.add("note");
   note.style.top = "0px";
-
-  const laneDiv = game.children[lane];
   note.dataset.lane = lane;
   note.dataset.hit = "false";
 
-  laneDiv.appendChild(note);
+  lanes[lane].appendChild(note);
   notes.push(note);
 }
 
 // ゲーム開始
 function startGame() {
   score = 0;
+  combo = 0;
   notes = [];
+
   scoreText.innerText = "Score: 0";
+  comboText.innerText = "Combo: 0";
   resultText.innerText = "";
 
   clearInterval(gameInterval);
   clearInterval(spawnInterval);
 
-  spawnInterval = setInterval(spawnNote, 800);
-
+  spawnInterval = setInterval(spawnNote, 700);
   gameInterval = setInterval(updateGame, 16);
 }
 
-// 更新処理
+// 更新
 function updateGame() {
   notes.forEach((note, index) => {
     let top = parseInt(note.style.top);
     top += speed;
     note.style.top = top + "px";
 
-    if (top > 450) {
+    if (top > 460) {
       if (note.dataset.hit === "false") {
         resultText.innerText = "Miss";
+        combo = 0;
+        comboText.innerText = "Combo: 0";
       }
       note.remove();
       notes.splice(index, 1);
@@ -156,13 +192,7 @@ function updateGame() {
 
 // 判定
 document.addEventListener("keydown", (e) => {
-  const keyMap = {
-    "d": 0,
-    "f": 1,
-    "j": 2,
-    "k": 3
-  };
-
+  const keyMap = { d: 0, f: 1, j: 2, k: 3 };
   const lane = keyMap[e.key];
   if (lane === undefined) return;
 
@@ -171,7 +201,7 @@ document.addEventListener("keydown", (e) => {
 
   notes.forEach(note => {
     if (parseInt(note.dataset.lane) === lane && note.dataset.hit === "false") {
-      let diff = Math.abs(450 - parseInt(note.style.top));
+      let diff = Math.abs(460 - parseInt(note.style.top));
       if (diff < bestDiff) {
         bestDiff = diff;
         bestNote = note;
@@ -183,20 +213,49 @@ document.addEventListener("keydown", (e) => {
     bestNote.dataset.hit = "true";
     bestNote.remove();
 
+    showFlash(lane);
+
     if (bestDiff < 15) {
       resultText.innerText = "Perfect!";
       score += 100;
+      combo++;
     } else if (bestDiff < 40) {
       resultText.innerText = "Good!";
       score += 50;
+      combo++;
     } else {
       resultText.innerText = "Miss";
+      combo = 0;
     }
 
     scoreText.innerText = "Score: " + score;
+    comboText.innerText = "Combo: " + combo;
   }
 });
+
+// 光エフェクト
+function showFlash(lane) {
+  const flash = document.createElement("div");
+  flash.classList.add("flash");
+  flash.style.left = (lane * 25) + "%";
+  game.appendChild(flash);
+
+  setTimeout(() => flash.remove(), 200);
+}
 </script>
 
 </body>
 </html>
+✨ 追加された進化ポイント
+
+ノーツが常に発光✨
+
+レーンごとに色が違う
+
+タイミングでフラッシュ演出
+
+コンボ表示🔥
+
+🎮 さらに神ゲーにするなら
+
+ここからが本番👇
